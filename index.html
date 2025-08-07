@@ -3,17 +3,18 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
-  <title>Canvas Flipbook</title>
+  <title>Coverflow Flipbook</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@10/swiper-bundle.min.css" />
   <style>
     html, body {
       margin: 0;
       padding: 0;
-      background: #111;
-      overflow: hidden;
-      touch-action: none;
       height: 100%;
+      overflow: hidden;
+      background: #111;
+      touch-action: none;
     }
+
     .swiper {
       width: 100vw;
       height: 100vh;
@@ -23,254 +24,220 @@
       opacity: 0;
       transition: opacity 0.2s ease-in;
     }
+
     .swiper.swiper-loaded {
       opacity: 1;
     }
+
     .swiper-slide {
+      width: auto;
+      height: auto;
       display: flex;
       align-items: center;
       justify-content: center;
     }
-    canvas {
-      border-radius: 12px;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.4);
-      max-width: 90vw;
+
+    .slide-inner {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+    }
+
+    .slide-inner img {
+      width: auto;
+      height: auto;
       max-height: 90vh;
-      background: #000;
+      max-width: 90vw;
+      object-fit: contain;
+      border-radius: 12px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+      transition: transform 0.2s ease;
+      cursor: pointer;
       touch-action: none;
     }
-    .swiper-button-next, .swiper-button-prev {
+
+    .page1-breath {
+      animation: breatheZoom 1.4s ease-out 1;
+    }
+
+    @keyframes breatheZoom {
+      0% {
+        transform: scale(1) brightness(0.3);
+        opacity: 0;
+      }
+      60% {
+        transform: scale(1.03) brightness(1.2);
+        opacity: 1;
+      }
+      100% {
+        transform: scale(1) brightness(1);
+      }
+    }
+
+    .swiper-button-next,
+    .swiper-button-prev {
       color: white;
       width: 38px;
       height: 38px;
+      background-color: transparent;
+      border-radius: 50%;
     }
-    .swiper-button-next::after, .swiper-button-prev::after {
+
+    .swiper-button-next::after,
+    .swiper-button-prev::after {
       font-size: 22px;
+    }
+
+    @media (max-width: 768px) {
+      .slide-inner img {
+        max-height: 80vh;
+        max-width: 95vw;
+      }
     }
   </style>
 </head>
 <body>
 
-<div class="swiper" id="swiperContainer">
-  <div class="swiper-wrapper" id="swiperWrapper"></div>
-  <div class="swiper-button-next"></div>
-  <div class="swiper-button-prev"></div>
-</div>
+  <div class="swiper" id="swiperContainer" style="visibility: hidden;">
+    <div class="swiper-wrapper" id="swiperWrapper"></div>
+    <div class="swiper-button-next"></div>
+    <div class="swiper-button-prev"></div>
+  </div>
 
-<script src="https://cdn.jsdelivr.net/npm/swiper@10/swiper-bundle.min.js"></script>
-<script>
-const NUM_PAGES = 45;
-const wrapper = document.getElementById('swiperWrapper');
+  <script src="https://cdn.jsdelivr.net/npm/swiper@10/swiper-bundle.min.js"></script>
+  <script>
+    const wrapper = document.getElementById('swiperWrapper');
+    const container = document.getElementById('swiperContainer');
 
-for (let i = 1; i <= NUM_PAGES; i++) {
-  const slide = document.createElement('div');
-  slide.className = 'swiper-slide';
-  const canvas = document.createElement('canvas');
-  canvas.width = 800;
-  canvas.height = 1200;
-  canvas.dataset.index = i;
-  slide.appendChild(canvas);
-  wrapper.appendChild(slide);
-}
+    for (let i = 1; i <= 45; i++) {
+      const slide = document.createElement('div');
+      slide.className = 'swiper-slide';
 
-let swiper;
-let activeCanvas = null;
-let activeImage = null;
-let scale = 1, panX = 0, panY = 0;
-let startX = 0, startY = 0, isDragging = false;
-let lastTap = 0, lastDistance = 0;
+      const isPage1 = i === 1;
+      const imgClass = isPage1 ? 'page1-img' : '';
 
-function drawImageToCanvas(img, canvas) {
-  const ctx = canvas.getContext("2d");
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.save();
+      slide.innerHTML = `
+        <div class="slide-inner">
+          <img src="pages/page${i}.webp" data-index="${i}" class="${imgClass}" />
+        </div>
+      `;
+      wrapper.appendChild(slide);
+    }
 
-  const canvasW = canvas.width;
-  const canvasH = canvas.height;
-  const imgW = img.width;
-  const imgH = img.height;
+    let swiper;
 
-  // Fit image inside canvas while preserving aspect ratio
-  const scaleToFit = Math.min(canvasW / imgW, canvasH / imgH);
+    window.addEventListener('load', () => {
+      swiper = new Swiper('.swiper', {
+        effect: 'coverflow',
+        grabCursor: true,
+        centeredSlides: true,
+        slidesPerView: 'auto',
+        slideToClickedSlide: true,
+        watchSlidesProgress: true,
+        initialSlide: 0,
+        coverflowEffect: {
+          rotate: 8,
+          stretch: -10,
+          depth: 220,
+          modifier: 1,
+          slideShadows: true
+        },
+        navigation: {
+          nextEl: '.swiper-button-next',
+          prevEl: '.swiper-button-prev',
+        },
+        keyboard: {
+          enabled: true,
+          onlyInViewport: true,
+        },
+        loop: false,
+        on: {
+          init: function () {
+            this.slideTo(0, 0, false);
+            container.style.visibility = 'visible';
+            container.classList.add('swiper-loaded');
 
-  const drawW = imgW * scaleToFit * scale;
-  const drawH = imgH * scaleToFit * scale;
+            setTimeout(() => {
+              const page1 = document.querySelector('.page1-img');
+              if (page1) {
+                page1.classList.add('page1-breath');
+              }
+            }, 100);
+          }
+        }
+      });
+    });
 
-  const drawX = (canvasW - drawW) / 2 + panX;
-  const drawY = (canvasH - drawH) / 2 + panY;
+    // --- Zoom Logic ---
+    let scale = 1;
+    let activeImage = null;
 
-  ctx.drawImage(img, drawX, drawY, drawW, drawH);
-
-  ctx.restore();
-}
-
-
-function loadImage(index, canvas) {
-  const img = new Image();
-  img.src = `pages/page${index}.webp`;
-  img.onload = () => {
-    activeImage = img;
-    drawImageToCanvas(img, canvas);
-  };
-}
-
-function resetZoom() {
-  scale = 1;
-  panX = 0;
-  panY = 0;
-  if (activeImage && activeCanvas) {
-    drawImageToCanvas(activeImage, activeCanvas);
-  }
-  swiper.allowTouchMove = true;
-}
-
-function applyTransform() {
-  if (activeImage && activeCanvas) {
-    drawImageToCanvas(activeImage, activeCanvas);
-  }
-}
-
-function getTouchDistance(touches) {
-  const dx = touches[1].clientX - touches[0].clientX;
-  const dy = touches[1].clientY - touches[0].clientY;
-  return Math.sqrt(dx * dx + dy * dy);
-}
-
-window.addEventListener('load', () => {
-  swiper = new Swiper('.swiper', {
-    effect: 'coverflow',
-    grabCursor: true,
-    centeredSlides: true,
-    slidesPerView: 'auto',
-    initialSlide: 0,
-    slideToClickedSlide: true,
-    watchSlidesProgress: true,
-    coverflowEffect: {
-      rotate: 8,
-      stretch: -10,
-      depth: 220,
-      modifier: 1,
-      slideShadows: true
-    },
-    navigation: {
-      nextEl: '.swiper-button-next',
-      prevEl: '.swiper-button-prev',
-    },
-    keyboard: {
-      enabled: true,
-      onlyInViewport: true,
-    },
-    on: {
-      init: function () {
-        document.getElementById('swiperContainer').classList.add('swiper-loaded');
-        const canvas = this.slides[this.activeIndex].querySelector('canvas');
-        activeCanvas = canvas;
-        loadImage(canvas.dataset.index, canvas);
-      },
-      slideChange: function () {
-        const canvas = this.slides[this.activeIndex].querySelector('canvas');
-        activeCanvas = canvas;
-        resetZoom();
-        loadImage(canvas.dataset.index, canvas);
+    function resetZoom() {
+      if (activeImage) {
+        activeImage.style.transform = 'scale(1)';
+        scale = 1;
       }
     }
-  });
-});
 
-// Desktop zoom
-document.addEventListener('wheel', (e) => {
-  if (!activeImage || !activeCanvas || e.ctrlKey) return;
-  e.preventDefault();
-  const zoomFactor = e.deltaY < 0 ? 1.05 : 0.95;
-  scale = Math.max(1, Math.min(scale * zoomFactor, 4));
-  swiper.allowTouchMove = scale === 1;
-  applyTransform();
-}, { passive: false });
-
-// Mouse pan
-document.addEventListener('mousedown', (e) => {
-  if (scale === 1 || !activeCanvas) return;
-  isDragging = true;
-  startX = e.clientX - panX;
-  startY = e.clientY - panY;
-});
-
-document.addEventListener('mousemove', (e) => {
-  if (!isDragging || scale === 1) return;
-  panX = e.clientX - startX;
-  panY = e.clientY - startY;
-  applyTransform();
-});
-
-document.addEventListener('mouseup', () => isDragging = false);
-document.addEventListener('mouseleave', () => isDragging = false);
-
-// Double click to zoom/reset
-document.addEventListener('dblclick', () => {
-  if (!activeCanvas || !activeImage) return;
-  if (scale === 1) {
-    scale = 2;
-    swiper.allowTouchMove = false;
-  } else {
-    resetZoom();
-  }
-  applyTransform();
-});
-
-// Touch zoom & pan
-document.addEventListener('touchstart', (e) => {
-  if (!activeCanvas || !activeImage) return;
-
-  if (e.touches.length === 1) {
-    const now = new Date().getTime();
-    if (now - lastTap < 300) {
-      if (scale === 1) {
-        scale = 2;
-        swiper.allowTouchMove = false;
-      } else {
-        resetZoom();
+    document.addEventListener('wheel', function (e) {
+      if (e.ctrlKey) {
+        e.preventDefault();
+        activeImage = document.querySelector('.swiper-slide-active img');
+        scale += e.deltaY * -0.002;
+        scale = Math.min(Math.max(1, scale), 3);
+        activeImage.style.transform = `scale(${scale})`;
       }
-      applyTransform();
-      e.preventDefault();
+    }, { passive: false });
+
+    document.addEventListener('dblclick', () => resetZoom());
+
+    // --- Pinch Zoom Logic ---
+    let initialDistance = null;
+    let touchZoomImage = null;
+
+    function getDistance(touches) {
+      const dx = touches[0].clientX - touches[1].clientX;
+      const dy = touches[0].clientY - touches[1].clientY;
+      return Math.sqrt(dx * dx + dy * dy);
     }
-    lastTap = now;
-    startX = e.touches[0].clientX - panX;
-    startY = e.touches[0].clientY - panY;
-    isDragging = true;
-  } else if (e.touches.length === 2) {
-    lastDistance = getTouchDistance(e.touches);
-  }
-});
 
-document.addEventListener('touchmove', (e) => {
-  if (!activeCanvas || !activeImage) return;
-  if (e.touches.length === 1 && isDragging && scale > 1) {
-    panX = e.touches[0].clientX - startX;
-    panY = e.touches[0].clientY - startY;
-    applyTransform();
-  } else if (e.touches.length === 2) {
-    const newDist = getTouchDistance(e.touches);
-    const zoomFactor = newDist / lastDistance;
-    scale = Math.max(1, Math.min(scale * zoomFactor, 4));
-    swiper.allowTouchMove = scale === 1;
-    lastDistance = newDist;
-    applyTransform();
-  }
-}, { passive: false });
+    document.addEventListener('touchstart', function (e) {
+      if (e.touches.length === 2) {
+        initialDistance = getDistance(e.touches);
+        touchZoomImage = document.querySelector('.swiper-slide-active img');
+      } else if (e.touches.length === 1) {
+        const now = new Date().getTime();
+        if (this.lastTap && (now - this.lastTap) < 300) {
+          resetZoom();
+        }
+        this.lastTap = now;
+      }
+    });
 
-document.addEventListener('touchend', () => {
-  isDragging = false;
-});
+    document.addEventListener('touchmove', function (e) {
+      if (e.touches.length === 2 && initialDistance && touchZoomImage) {
+        const currentDistance = getDistance(e.touches);
+        const delta = (currentDistance - initialDistance) * 0.005;
+        scale += delta;
+        scale = Math.min(Math.max(1, scale), 3);
+        touchZoomImage.style.transform = `scale(${scale})`;
+        initialDistance = currentDistance;
+        e.preventDefault();
+      }
+    }, { passive: false });
 
-document.querySelector('.swiper-button-next').addEventListener('click', resetZoom);
-document.querySelector('.swiper-button-prev').addEventListener('click', resetZoom);
+    document.addEventListener('touchend', () => {
+      initialDistance = null;
+      touchZoomImage = null;
+    });
 
-window.addEventListener('orientationchange', () => {
-  setTimeout(() => {
-    if (swiper) swiper.update();
-    resetZoom();
-  }, 500);
-});
-</script>
+    window.addEventListener('orientationchange', () => {
+      setTimeout(() => {
+        if (swiper) swiper.update();
+      }, 500);
+    });
+  </script>
 </body>
 </html>
