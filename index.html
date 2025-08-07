@@ -1,140 +1,126 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
-  <title>Coverflow Flipbook</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@10/swiper-bundle.min.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+  <title>Canvas Flipbook</title>
   <style>
     html, body {
       margin: 0;
       padding: 0;
-      height: 100%;
-      overflow: hidden;
       background: #111;
-      touch-action: none;
-    }
-    .swiper {
-      width: 100vw;
-      height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      opacity: 0;
-      transition: opacity 0.2s ease-in;
-    }
-    .swiper.swiper-loaded {
-      opacity: 1;
-    }
-    .swiper-slide {
-      width: auto;
-      height: auto;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .slide-inner {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 100%;
+      overflow: hidden;
       height: 100%;
     }
-    .slide-inner img {
-      width: auto;
-      height: auto;
-      max-height: 90vh;
-      max-width: 90vw;
-      object-fit: contain;
-      border-radius: 12px;
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
-      transition: transform 0.3s ease, opacity 1s ease, transform 1s ease;
-      touch-action: none;
-      cursor: grab;
+    #canvas {
+      display: block;
+      margin: 0 auto;
+      background: #111;
+      max-width: 100vw;
+      max-height: 100vh;
     }
-    .swiper-button-next,
-    .swiper-button-prev {
-      color: white;
-      width: 38px;
-      height: 38px;
-      background-color: transparent;
+    .nav-button {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 42px;
+      height: 42px;
       border-radius: 50%;
+      background: #222;
+      color: white;
+      font-size: 24px;
+      border: none;
+      cursor: pointer;
+      z-index: 10;
+      box-shadow: 0 0 12px rgba(0, 0, 0, 0.3);
     }
-    .swiper-button-next::after,
-    .swiper-button-prev::after {
-      font-size: 22px;
-    }
-    .wake-up {
-      animation: wakeUp 1s ease forwards;
-    }
-    @keyframes wakeUp {
-      0% {
-        transform: scale(0.95);
-        opacity: 0;
-      }
-      100% {
-        transform: scale(1);
-        opacity: 1;
-      }
-    }
+    #prevBtn { left: 16px; }
+    #nextBtn { right: 16px; }
   </style>
 </head>
 <body>
-  <div class="swiper" id="swiperContainer" style="visibility: hidden;">
-    <div class="swiper-wrapper" id="swiperWrapper"></div>
-    <div class="swiper-button-next"></div>
-    <div class="swiper-button-prev"></div>
-  </div>
+  <button id="prevBtn" class="nav-button">&#8592;</button>
+  <button id="nextBtn" class="nav-button">&#8594;</button>
+  <canvas id="canvas"></canvas>
 
-  <script src="https://cdn.jsdelivr.net/npm/swiper@10/swiper-bundle.min.js"></script>
   <script>
-    const wrapper = document.getElementById('swiperWrapper');
-    for (let i = 1; i <= 45; i++) {
-      const slide = document.createElement('div');
-      slide.className = 'swiper-slide';
-      slide.innerHTML = `<div class="slide-inner"><img src="pages/page${i}.jpg" /></div>`;
-      wrapper.appendChild(slide);
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const totalPages = 45;
+    const imagePaths = Array.from({ length: totalPages }, (_, i) => `pages/page${i + 1}.jpg`);
+    let currentPage = 0;
+    let currentImage = null;
+    let preloadLeft = null;
+    let preloadRight = null;
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
     }
 
-    let swiper;
+    function drawImageCentered(img) {
+      const scale = Math.min(canvas.width / img.width, canvas.height / img.height);
+      const x = (canvas.width - img.width * scale) / 2;
+      const y = (canvas.height - img.height * scale) / 2;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+    }
 
-    window.addEventListener('load', () => {
-      swiper = new Swiper('.swiper', {
-        effect: 'coverflow',
-        grabCursor: true,
-        centeredSlides: true,
-        slidesPerView: 'auto',
-        slideToClickedSlide: true,
-        watchSlidesProgress: true,
-        initialSlide: 0,
-        coverflowEffect: {
-          rotate: 8,
-          stretch: -10,
-          depth: 220,
-          modifier: 1,
-          slideShadows: true
-        },
-        navigation: {
-          nextEl: '.swiper-button-next',
-          prevEl: '.swiper-button-prev',
-        },
-        keyboard: {
-          enabled: true,
-          onlyInViewport: true,
-        },
-        loop: false,
-        on: {
-          init: function () {
-            document.getElementById('swiperContainer').style.visibility = 'visible';
-            document.getElementById('swiperContainer').classList.add('swiper-loaded');
-            const firstImg = document.querySelector('.swiper-slide-active img');
-            if (firstImg) {
-              firstImg.classList.add('wake-up');
-            }
-          }
-        }
+    function loadImage(index, callback) {
+      const img = new Image();
+      img.src = imagePaths[index];
+      img.onload = () => callback(img);
+    }
+
+    function updateCanvas(direction = 0) {
+      if (direction !== 0) {
+        ctx.globalAlpha = 0;
+        let step = 0;
+        const fade = () => {
+          step += 0.05;
+          ctx.globalAlpha = Math.min(1, step);
+          drawImageCentered(currentImage);
+          if (step < 1) requestAnimationFrame(fade);
+        };
+        fade();
+      } else {
+        drawImageCentered(currentImage);
+      }
+    }
+
+    function showPage(index, direction = 0) {
+      if (index < 0 || index >= totalPages) return;
+      currentPage = index;
+      loadImage(currentPage, (img) => {
+        currentImage = img;
+        updateCanvas(direction);
+        // Preload neighbors
+        if (currentPage > 0) preloadLeft = new Image(), preloadLeft.src = imagePaths[currentPage - 1];
+        if (currentPage < totalPages - 1) preloadRight = new Image(), preloadRight.src = imagePaths[currentPage + 1];
       });
+    }
+
+    document.getElementById('nextBtn').addEventListener('click', () => {
+      if (currentPage < totalPages - 1) showPage(currentPage + 1, 1);
     });
+
+    document.getElementById('prevBtn').addEventListener('click', () => {
+      if (currentPage > 0) showPage(currentPage - 1, -1);
+    });
+
+    window.addEventListener('resize', () => {
+      resizeCanvas();
+      if (currentImage) drawImageCentered(currentImage);
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight') document.getElementById('nextBtn').click();
+      if (e.key === 'ArrowLeft') document.getElementById('prevBtn').click();
+    });
+
+    // Initialize
+    resizeCanvas();
+    showPage(0);
   </script>
 </body>
 </html>
